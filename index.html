@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>ふたりのタイムカード</title>
+<title>タイムカード</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#1c4fd8">
@@ -60,6 +60,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .who{display:flex;align-items:center;gap:10px;min-width:0;font-weight:700}
 .clock{font-family:var(--f-mono);font-size:2.6rem;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
 .clock-sub{font-size:.82rem;color:var(--muted)}
+.today{margin-top:6px;padding-top:8px;border-top:1px dashed var(--line);font-size:.88rem;color:var(--muted)}
+.today strong{color:var(--ink);font-size:1rem;margin-left:4px}
 .punches{display:flex;flex-direction:column;gap:8px;min-width:150px}
 .punch{font-size:1.05rem;font-weight:900;padding:14px 18px;border-radius:12px;letter-spacing:.06em}
 .punch.in{background:var(--work);border-color:var(--work);color:var(--card)}
@@ -114,7 +116,7 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
 
 <!-- 参加画面 -->
 <div class="wrap" id="joinView" hidden>
-  <header><h1><small>TIME CARD · 共同開発</small>ふたりのタイムカード</h1></header>
+  <header><h1><small>TIME CARD · 共同開発</small>タイムカード</h1></header>
   <form class="card" id="joinForm">
     <h3>はじめて使う</h3>
     <p class="muted">共有された招待コードと、相手に表示される名前を入れてください。</p>
@@ -135,7 +137,7 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
 <!-- メイン画面 -->
 <div class="wrap" id="mainView" hidden>
   <header>
-    <h1><small>TIME CARD · 共同開発</small>ふたりのタイムカード</h1>
+    <h1><small>TIME CARD · 共同開発</small>タイムカード</h1>
     <button class="btn-ghost" id="settingsBtn" type="button">設定・通知</button>
   </header>
 
@@ -144,6 +146,7 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
       <div class="who"><span id="meName">—</span><span class="pill off" id="meState">オフ</span></div>
       <div class="clock" id="meClock">00:00:00</div>
       <div class="clock-sub" id="meSub">読み込み中…</div>
+      <div class="today" id="meToday">今日の合計 <strong class="mono" id="meTodayVal">0時間00分</strong></div>
     </div>
     <div class="punches" id="punches"></div>
   </section>
@@ -422,7 +425,8 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
     if(!S.me) return;
     const s=openOf(S.me.id), st=stateOf(s);
     if(st==="work"||st==="brk"){ $("meClock").textContent=clock(workedMs(s)); const b=Math.round(breakMs(s)/60000); $("meSub").textContent=hm(T(s.start_at))+" 出勤"+(b?" · 休憩 "+b+"分":""); }
-    else { const t=todayTotal(S.me.id); $("meClock").textContent=clock(t); $("meSub").textContent= t? "今日の稼働合計" : "まだ出勤していません"; }
+    else { const last=S.sessions.find(x=>x.member_id===S.me.id && x.end_at); $("meClock").textContent=clock(0); $("meSub").textContent= last && dayKey(T(last.end_at))===dayKey(now()) ? hm(T(last.end_at))+" 退勤済み" : "まだ出勤していません"; }
+    $("meTodayVal").textContent=dur(todayTotal(S.me.id));
     document.querySelectorAll("[data-live]").forEach(n=>{ const ss=openOf(n.getAttribute("data-live")); if(ss) n.textContent=hm(T(ss.start_at))+" から · "+dur(workedMs(ss)); });
     document.querySelectorAll("[data-live-entry]").forEach(n=>{ const ss=S.sessions.find(x=>x.id===n.getAttribute("data-live-entry")); if(ss) n.textContent=dur(workedMs(ss)); });
   }
