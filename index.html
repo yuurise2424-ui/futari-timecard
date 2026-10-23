@@ -91,6 +91,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .entry .sum.empty{color:var(--muted);font-style:italic}
 .entry .acts{grid-column:1 / 4;display:flex;justify-content:flex-end}
 .entry .acts button{font-size:.78rem;padding:3px 10px}
+.plan{grid-column:2 / 4;font-size:.86rem;color:var(--muted);overflow-wrap:anywhere;min-width:0;white-space:pre-wrap}
+.plan b{color:var(--ink);font-weight:700;margin-right:4px}
+.plan-ref{background:var(--bg);border-radius:10px;padding:8px 10px;white-space:pre-wrap}
+.member .doing{font-size:.85rem;overflow-wrap:anywhere;white-space:pre-wrap}
 .tag{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:0 6px}
 .empty-state{background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--muted)}
 
@@ -167,11 +171,25 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
   <p class="muted" id="statusLine"></p>
 </div>
 
+<!-- 出勤モーダル -->
+<div class="modal-back" id="inModal" hidden>
+  <form class="modal" id="inForm">
+    <h3>出勤：今回やること</h3>
+    <p>軽くでOKです。相手への出勤通知に載ります。空欄でも出勤できます。</p>
+    <textarea id="inText" style="min-height:90px" placeholder="例）設定画面のUIを作る、ログインのバグ調査"></textarea>
+    <div class="row-btns">
+      <button type="button" class="btn-ghost" id="inCancel">戻る</button>
+      <button type="submit" class="btn-primary">出勤する</button>
+    </div>
+  </form>
+</div>
+
 <!-- 退勤モーダル -->
 <div class="modal-back" id="outModal" hidden>
   <form class="modal" id="outForm">
     <h3 id="outTitle">退勤：今回やったこと</h3>
     <p>相手が見て「何を触ったか」分かるように書いておきます。この内容は相手への退勤通知にも載ります。</p>
+    <p id="outPlan" class="plan-ref" hidden></p>
     <div><button type="button" id="tplBtn" style="font-size:.8rem;padding:4px 10px">ひな形を入れる</button></div>
     <textarea id="outText" placeholder="例）&#10;・ログイン画面のバリデーションを修正（LoginForm.tsx）&#10;・次やること：設定画面のUI"></textarea>
     <div class="row-btns">
@@ -191,6 +209,7 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
       <label class="field">退勤<input type="datetime-local" id="editEnd"></label>
     </div>
     <label class="field">休憩（分）<input type="number" id="editBreak" min="0" step="1" inputmode="numeric"></label>
+    <label class="field">やること（出勤時）<textarea id="editPlan" style="min-height:70px"></textarea></label>
     <label class="field">やったこと<textarea id="editText"></textarea></label>
     <p class="err" id="editErr" hidden></p>
     <div class="row-btns">
@@ -354,10 +373,19 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
   }
 
   // ---------- punches ----------
+  function openIn(){ $("inText").value = LS.get("tc.plandraft") || ""; $("inModal").hidden=false; $("inText").focus(); }
+  $("inText").addEventListener("input",()=>LS.set("tc.plandraft",$("inText").value));
+  $("inCancel").onclick=()=>{ $("inModal").hidden=true; };
+  $("inForm").addEventListener("submit",async e=>{
+    e.preventDefault(); $("inModal").hidden=true;
+    await act("punch",{p_action:"in", p_summary:null, p_plan:$("inText").value.trim()}, "出勤しました");
+    if(openOf(S.me.id)) LS.del("tc.plandraft");
+  });
   function openOut(){
     const s=openOf(S.me.id); if(!s) return;
     S.outFor=s.id; $("outText").value = LS.get("tc.draft."+s.id) || "";
     $("outTitle").textContent="退勤："+dur(workedMs(s))+" の作業内容";
+    $("outPlan").textContent = s.plan ? "出勤時のやること："+s.plan : ""; $("outPlan").hidden = !s.plan;
     $("outModal").hidden=false; $("outText").focus();
   }
   $("outText").addEventListener("input",()=>{ if(S.outFor) LS.set("tc.draft."+S.outFor,$("outText").value); });
@@ -365,7 +393,7 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
   $("outForm").addEventListener("submit",async e=>{
     e.preventDefault(); $("outModal").hidden=true;
     const id=S.outFor;
-    await act("punch",{p_action:"out", p_summary:$("outText").value.trim()}, "退勤しました。おつかれさまでした");
+    await act("punch",{p_action:"out", p_summary:$("outText").value.trim(), p_plan:null}, "退勤しました。おつかれさまでした");
     if(!openOf(S.me.id)) LS.del("tc.draft."+id);
   });
   $("tplBtn").onclick=()=>{ const t=$("outText"); const tpl="・やったこと：\n・変更したファイル／画面：\n・相手に伝えたいこと：\n・次にやること："; t.value=t.value? t.value+"\n"+tpl : tpl; t.dispatchEvent(new Event("input")); t.focus(); };
@@ -373,7 +401,7 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
   // ---------- edit ----------
   function openEdit(s){
     S.editFor=s.id; $("editStart").value=toLocalInput(T(s.start_at)); $("editEnd").value=toLocalInput(T(s.end_at));
-    $("editBreak").value=Math.round(breakMs(s,T(s.end_at))/60000); $("editText").value=s.summary||""; $("editErr").hidden=true; $("editModal").hidden=false;
+    $("editBreak").value=Math.round(breakMs(s,T(s.end_at))/60000); $("editText").value=s.summary||""; $("editPlan").value=s.plan||""; $("editErr").hidden=true; $("editModal").hidden=false;
   }
   $("editCancel").onclick=()=>{ $("editModal").hidden=true; };
   $("editForm").addEventListener("submit",e=>{
@@ -385,7 +413,7 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
     if(end && end<=start) return err("退勤は出勤より後の時刻にしてください。");
     if(end && bmin*60000 >= end-start) return err("休憩が稼働時間より長くなっています。");
     $("editModal").hidden=true;
-    act("edit_session",{p_id:S.editFor, p_start:start.toISOString(), p_end:end?end.toISOString():null, p_break_min:bmin, p_summary:$("editText").value.trim()}, "修正を保存しました");
+    act("edit_session",{p_id:S.editFor, p_start:start.toISOString(), p_end:end?end.toISOString():null, p_break_min:bmin, p_summary:$("editText").value.trim(), p_plan:$("editPlan").value.trim()}, "修正を保存しました");
   });
   $("editDelete").onclick=()=>{ const id=S.editFor; $("editModal").hidden=true; ask("この記録を削除しますか？","削除すると元に戻せません。","削除する",()=>act("delete_session",{p_id:id},"削除しました")); };
 
@@ -405,9 +433,9 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
   function renderPunches(){
     const box=$("punches"); box.replaceChildren();
     const s=openOf(S.me.id), st=stateOf(s), dis=S.busy?"":null;
-    if(st==="off"||st==="done") box.append(el("button",{class:"punch in",type:"button",disabled:dis,onclick:()=>act("punch",{p_action:"in"},"出勤しました"),text:"出勤"}));
+    if(st==="off"||st==="done") box.append(el("button",{class:"punch in",type:"button",disabled:dis,onclick:openIn,text:"出勤"}));
     else{
-      box.append(el("button",{class:"punch brk",type:"button",disabled:dis,onclick:()=>act("punch",{p_action: st==="brk"?"resume":"break"}, st==="brk"?"休憩を終えました":"休憩に入りました"),text: st==="brk"?"休憩おわり":"休憩"}));
+      box.append(el("button",{class:"punch brk",type:"button",disabled:dis,onclick:()=>act("punch",{p_action: st==="brk"?"resume":"break", p_summary:null, p_plan:null}, st==="brk"?"休憩を終えました":"休憩に入りました"),text: st==="brk"?"休憩おわり":"休憩"}));
       box.append(el("button",{class:"punch out",type:"button",disabled:dis,onclick:openOut,text:"退勤"}));
     }
   }
@@ -438,7 +466,8 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
       return el("div",{class:"member"},
         el("div",{class:"row"}, el("span",{class:"nm",text:nameOf(mid)+(mid===S.me.id?"（あなた）":"")}),
           el("span",{class:"pill "+(st==="work"?"work":st==="brk"?"brk":"off"),text:st==="work"?"稼働中":st==="brk"?"休憩中":"オフ"})),
-        el("div",{class:"meta"}, el("span",{"data-live":live?mid:null,text:since}), el("span",{class:"mono",text:"今日 "+dur(todayTotal(mid))})));
+        el("div",{class:"meta"}, el("span",{"data-live":live?mid:null,text:since}), el("span",{class:"mono",text:"今日 "+dur(todayTotal(mid))})),
+        live && s.plan ? el("div",{class:"doing",text:"やること："+s.plan}) : null);
     }));
     if(S.members.length<2) $("team").append(el("div",{class:"empty-state",text:"相手がまだ参加していません。招待コードとこのページのURLを送ってください。"}));
   }
@@ -465,6 +494,7 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
               b>=60000? el("span",{class:"tag",text:"休憩 "+Math.round(b/60000)+"分"}) : null,
               s.edited? el("span",{class:"tag",text:"修正済み"}) : null),
             el("div",{class:"dur","data-live-entry": st!=="done"? s.id : null,text:dur(workedMs(s))}),
+            s.plan ? el("div",{class:"plan"}, el("b",{text:"予定"}), s.plan) : null,
             el("div",{class:"sum"+(s.summary?"":" empty"),text: s.summary || (st==="done"?"作業メモなし":"作業中…")}),
             s.member_id===S.me.id ? el("div",{class:"acts"}, el("button",{type:"button",onclick:()=>openEdit(s),text:"修正"})) : null);
         })));
