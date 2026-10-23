@@ -478,6 +478,7 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });
 
   // ---------- boot ----------
+  if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
   const m = location.hash.match(/k=([0-9a-f]{48})/);
   if(m){ LS.set("tc.secret", m[1]); history.replaceState(null,"",location.pathname); }
   const saved = LS.get("tc.secret");
