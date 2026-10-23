@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ふたりのタイムカード</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#1c4fd8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="タイムカード">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f4; --card:#ffffff; --ink:#18212b; --muted:#5b6876; --line:#d6dde4;
+  --accent:#1c4fd8; --accent-ink:#ffffff; --accent-soft:#e3eafc;
+  --work:#11804f; --work-soft:#dcf2e7; --brk:#b25e00; --brk-soft:#fbecd8; --off:#7a8591; --off-soft:#e8ecf0;
+  --danger:#b3261e; --shadow:0 1px 2px rgba(20,30,45,.06),0 4px 16px rgba(20,30,45,.06);
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f141a; --card:#172029; --ink:#e7edf3; --muted:#9aa8b6; --line:#2a3743;
+  --accent:#7aa2ff; --accent-ink:#0b1220; --accent-soft:#1d2b4a;
+  --work:#4cc98c; --work-soft:#143326; --brk:#f0a650; --brk-soft:#3a2a14; --off:#8b97a3; --off-soft:#222c36;
+  --danger:#ff8a80; --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25); color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;display:flex;flex-direction:column;gap:20px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-size:1.35rem;font-weight:900;margin:0;letter-spacing:.02em}
+h1 small{display:block;font-size:.72rem;font-weight:500;color:var(--muted);letter-spacing:.08em}
+h2{font-size:.78rem;font-weight:700;letter-spacing:.14em;color:var(--muted);margin:0 0 10px}
+h3{margin:0;font-size:1.1rem}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.btn-ghost{background:transparent}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:700;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.work{color:var(--work);background:var(--work-soft)}
+.pill.brk{color:var(--brk);background:var(--brk-soft)}
+.pill.off{color:var(--off);background:var(--off-soft)}
+.pill.work::before{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.pill.work::before{animation:none}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:12px}
+.card p{margin:0}
+.muted{color:var(--muted);font-size:.88rem}
+
+.station{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:20px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center}
+.who{display:flex;align-items:center;gap:10px;min-width:0;font-weight:700}
+.clock{font-family:var(--f-mono);font-size:2.6rem;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
+.clock-sub{font-size:.82rem;color:var(--muted)}
+.punches{display:flex;flex-direction:column;gap:8px;min-width:150px}
+.punch{font-size:1.05rem;font-weight:900;padding:14px 18px;border-radius:12px;letter-spacing:.06em}
+.punch.in{background:var(--work);border-color:var(--work);color:var(--card)}
+.punch.out{background:var(--ink);border-color:var(--ink);color:var(--card)}
+.punch.brk{background:var(--brk-soft);border-color:var(--brk);color:var(--brk)}
+@media (max-width:520px){.station{grid-template-columns:1fr}.punches{flex-direction:row;flex-wrap:wrap}.punch{flex:1 1 120px}}
+
+.team{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.member{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.member .row{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.member .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.member .meta{font-size:.82rem;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+
+.log-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);flex-wrap:wrap}
+.seg button{border:0;border-radius:0;padding:6px 12px;font-size:.85rem;background:transparent}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--card)}
+.week{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.day{margin-top:14px}
+.day-h{display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted);border-bottom:1px dashed var(--line);padding-bottom:4px;margin-bottom:8px}
+.entry{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;margin-bottom:8px}
+.entry .stamp{grid-row:span 2;display:flex;flex-direction:column;font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:.92rem;line-height:1.35;border-right:2px solid var(--line);padding-right:12px}
+.entry .stamp .arrow{color:var(--muted);font-size:.75rem}
+.entry .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.entry .dur{font-family:var(--f-mono);font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.entry .sum{grid-column:2 / 4;font-size:.9rem;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.entry .sum.empty{color:var(--muted);font-style:italic}
+.entry .acts{grid-column:1 / 4;display:flex;justify-content:flex-end}
+.entry .acts button{font-size:.78rem;padding:3px 10px}
+.tag{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:0 6px}
+.empty-state{background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--muted)}
+
+.modal-back{position:fixed;inset:0;background:rgba(10,15,20,.5);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
+@media (min-width:600px){.modal-back{align-items:center}}
+.modal{background:var(--card);color:var(--ink);border-radius:16px;width:100%;max-width:560px;max-height:88vh;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
+.modal p{margin:0;color:var(--muted);font-size:.88rem}
+textarea,input{font:inherit;font-size:16px;width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--ink)}
+textarea{min-height:150px;resize:vertical}
+.field{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted)}
+.row-btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:420px){.grid2{grid-template-columns:1fr}}
+.copybox{display:flex;gap:8px;align-items:stretch}
+.copybox code{flex:1;min-width:0;font-family:var(--f-mono);font-size:.85rem;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;overflow-wrap:anywhere;user-select:all}
+ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;font-size:.92rem}
+.toasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:8px;z-index:60;width:min(92vw,420px)}
+.toast{background:var(--ink);color:var(--card);border-radius:12px;padding:10px 14px;font-size:.9rem;box-shadow:var(--shadow)}
+.err{color:var(--danger);font-size:.88rem}
+</style>
+</head>
+<body>
+
+<!-- 参加画面 -->
+<div class="wrap" id="joinView" hidden>
+  <header><h1><small>TIME CARD · 共同開発</small>ふたりのタイムカード</h1></header>
+  <form class="card" id="joinForm">
+    <h3>はじめて使う</h3>
+    <p class="muted">共有された招待コードと、相手に表示される名前を入れてください。</p>
+    <label class="field">招待コード<input id="joinCode" autocomplete="off" autocapitalize="characters" required></label>
+    <label class="field">表示名<input id="joinName" maxlength="24" placeholder="例）優" required></label>
+    <p class="err" id="joinErr" hidden></p>
+    <div class="row-btns"><button class="btn-primary" type="submit" id="joinBtn">参加する</button></div>
+  </form>
+  <form class="card" id="loginForm">
+    <h3>すでに参加している（別の端末・ホーム画面のアプリ）</h3>
+    <p class="muted">参加したときの「ログインキー」を貼り付けてください。設定画面からいつでもコピーできます。</p>
+    <label class="field">ログインキー<input id="loginKey" autocomplete="off" required></label>
+    <p class="err" id="loginErr" hidden></p>
+    <div class="row-btns"><button type="submit">ログイン</button></div>
+  </form>
+</div>
+
+<!-- メイン画面 -->
+<div class="wrap" id="mainView" hidden>
+  <header>
+    <h1><small>TIME CARD · 共同開発</small>ふたりのタイムカード</h1>
+    <button class="btn-ghost" id="settingsBtn" type="button">設定・通知</button>
+  </header>
+
+  <section class="station" aria-label="打刻">
+    <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+      <div class="who"><span id="meName">—</span><span class="pill off" id="meState">オフ</span></div>
+      <div class="clock" id="meClock">00:00:00</div>
+      <div class="clock-sub" id="meSub">読み込み中…</div>
+    </div>
+    <div class="punches" id="punches"></div>
+  </section>
+
+  <section aria-label="メンバーの状況">
+    <h2>いまの稼働状況</h2>
+    <div class="team" id="team"></div>
+  </section>
+
+  <section aria-label="記録">
+    <div class="log-tools">
+      <h2 style="margin:0">タイムカード記録</h2>
+      <div class="seg" id="filterSeg" role="group" aria-label="表示する人"></div>
+    </div>
+    <div class="week" id="week"></div>
+    <div id="log"><div class="empty-state">記録を読み込んでいます…</div></div>
+  </section>
+  <p class="muted" id="statusLine"></p>
+</div>
+
+<!-- 退勤モーダル -->
+<div class="modal-back" id="outModal" hidden>
+  <form class="modal" id="outForm">
+    <h3 id="outTitle">退勤：今回やったこと</h3>
+    <p>相手が見て「何を触ったか」分かるように書いておきます。この内容は相手への退勤通知にも載ります。</p>
+    <div><button type="button" id="tplBtn" style="font-size:.8rem;padding:4px 10px">ひな形を入れる</button></div>
+    <textarea id="outText" placeholder="例）&#10;・ログイン画面のバリデーションを修正（LoginForm.tsx）&#10;・次やること：設定画面のUI"></textarea>
+    <div class="row-btns">
+      <button type="button" class="btn-ghost" id="outCancel">戻る</button>
+      <button type="submit" class="btn-primary">退勤する</button>
+    </div>
+  </form>
+</div>
+
+<!-- 修正モーダル -->
+<div class="modal-back" id="editModal" hidden>
+  <form class="modal" id="editForm">
+    <h3>記録を修正</h3>
+    <p>打刻忘れなどの修正用です。修正した記録には「修正済み」と表示されます。</p>
+    <div class="grid2">
+      <label class="field">出勤<input type="datetime-local" id="editStart" required></label>
+      <label class="field">退勤<input type="datetime-local" id="editEnd"></label>
+    </div>
+    <label class="field">休憩（分）<input type="number" id="editBreak" min="0" step="1" inputmode="numeric"></label>
+    <label class="field">やったこと<textarea id="editText"></textarea></label>
+    <p class="err" id="editErr" hidden></p>
+    <div class="row-btns">
+      <button type="button" class="btn-ghost" id="editDelete" style="margin-right:auto;color:var(--danger)">削除</button>
+      <button type="button" class="btn-ghost" id="editCancel">戻る</button>
+      <button type="submit" class="btn-primary">保存</button>
+    </div>
+  </form>
+</div>
+
+<!-- 設定モーダル -->
+<div class="modal-back" id="setModal" hidden>
+  <div class="modal">
+    <h3>通知の受け取り設定</h3>
+    <p>相手が出勤・休憩・退勤すると、スマホに通知が届きます。通知アプリ「ntfy」を入れて、下のトピックを登録してください。</p>
+    <div class="copybox"><code id="topicText"></code><button type="button" data-copy="topicText">コピー</button></div>
+    <ol class="steps">
+      <li><strong>iPhone：</strong>App Store で「ntfy」を入れる → 右上の「＋」→ トピック名に上の文字を貼り付けて「Subscribe」→ 通知を許可</li>
+      <li><strong>Android：</strong>Google Play で「ntfy」を入れる → 右下の「＋」→ トピック名に上の文字を貼り付けて「Subscribe」→ 通知を許可</li>
+    </ol>
+    <p>このトピック名を知っている人には通知が見えるので、他の人には共有しないでください。</p>
+
+    <h3 style="margin-top:8px">別の端末・ホーム画面のアプリで使う</h3>
+    <p>新しい端末では、参加画面の「ログインキー」にこれを貼り付けます。iPhone でホーム画面に追加したアプリも、最初に一度これでログインします。</p>
+    <div class="copybox"><code id="keyText"></code><button type="button" data-copy="keyText">コピー</button></div>
+
+    <h3 style="margin-top:8px">表示名</h3>
+    <div class="copybox"><input id="nameInput" maxlength="24"><button type="button" id="nameSave">保存</button></div>
+
+    <div class="row-btns" style="margin-top:8px">
+      <button type="button" class="btn-ghost" id="logoutBtn" style="margin-right:auto;color:var(--danger)">この端末からログアウト</button>
+      <button type="button" class="btn-primary" id="setClose">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 確認モーダル -->
+<div class="modal-back" id="confirmModal" hidden>
+  <div class="modal">
+    <h3 id="confirmTitle">確認</h3>
+    <p id="confirmText"></p>
+    <div class="row-btns">
+      <button type="button" class="btn-ghost" id="confirmNo">やめる</button>
+      <button type="button" class="btn-primary" id="confirmYes">実行</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+(() => {
+  const API = "https://qduoznzlwfzivmebtdse.supabase.co/rest/v1/rpc/";
+  const KEY = "sb_publishable_EGIDKtCC2KoXz_Mo5IHsuw_7w_olLsc";
+  const $ = id => document.getElementById(id);
+  const LS = {get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+
+  const S = { secret:null, me:null, members:[], sessions:[], filter:"all", busy:false, outFor:null, editFor:null, skew:0, prev:null };
+
+  async function rpc(fn, args){
+    const r = await fetch(API+fn, { method:"POST", headers:{ "apikey":KEY, "Authorization":"Bearer "+KEY, "Content-Type":"application/json" }, body: JSON.stringify(args||{}) });
+    const txt = await r.text();
+    if(!r.ok){ let m=""; try{ m=JSON.parse(txt).message||"" }catch(e){} const err=new Error(m||("HTTP "+r.status)); err.code=m; throw err; }
+    return txt ? JSON.parse(txt) : null;
+  }
+
+  // ---------- helpers ----------
+  const pad = n => String(n).padStart(2,"0");
+  const T = v => v ? new Date(v).getTime() : null;
+  const now = () => Date.now() + S.skew;
+  const hm = t => { const d=new Date(t); return pad(d.getHours())+":"+pad(d.getMinutes()); };
+  const dayKey = t => { const d=new Date(t); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
+  const W = ["日","月","火","水","木","金","土"];
+  const dayLabel = k => { const [y,m,d]=k.split("-").map(Number); const dt=new Date(y,m-1,d); const today=dayKey(now()), yest=dayKey(now()-864e5); return (k===today?"今日 · ":k===yest?"昨日 · ":"")+m+"/"+d+"（"+W[dt.getDay()]+"）"; };
+  const dur = ms => { ms=Math.max(0,ms); const m=Math.floor(ms/60000); return Math.floor(m/60)+"時間"+pad(m%60)+"分"; };
+  const clock = ms => { ms=Math.max(0,ms); const s=Math.floor(ms/1000); return pad(Math.floor(s/3600))+":"+pad(Math.floor(s/60)%60)+":"+pad(s%60); };
+  const toLocalInput = t => { if(!t) return ""; const d=new Date(t); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes()); };
+  const stateOf = s => !s ? "off" : s.end_at ? "done" : (s.breaks||[]).some(b=>!b.e) ? "brk" : "work";
+  const breakMs = (s, until) => (s.breaks||[]).reduce((a,b)=>a+((T(b.e)||until||now())-T(b.s)),0);
+  const workedMs = s => { const end=T(s.end_at)||now(); return end - T(s.start_at) - breakMs(s,end); };
+  const openOf = mid => S.sessions.find(s=>s.member_id===mid && !s.end_at) || null;
+  const nameOf = mid => (S.members.find(m=>m.id===mid)||{}).name || "メンバー";
+  const el = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(v==null) continue; if(k==="class") e.className=v; else if(k==="text") e.textContent=v; else if(k.startsWith("on")) e.addEventListener(k.slice(2),v); else e.setAttribute(k,v);} kids.flat().forEach(k=>k!=null&&e.append(k)); return e; };
+  function toast(msg){ const t=el("div",{class:"toast",text:msg}); $("toasts").append(t); setTimeout(()=>t.remove(),5000); }
+
+  let confirmCb=null;
+  function ask(title,text,yes,cb){ $("confirmTitle").textContent=title; $("confirmText").textContent=text; $("confirmYes").textContent=yes; confirmCb=cb; $("confirmModal").hidden=false; }
+  $("confirmNo").onclick=()=>{ $("confirmModal").hidden=true; };
+  $("confirmYes").onclick=()=>{ $("confirmModal").hidden=true; const c=confirmCb; confirmCb=null; c&&c(); };
+
+  const ERR = { already_in:"すでに出勤しています。", not_in:"出勤していません。", already_break:"すでに休憩中です。", bad_range:"退勤は出勤より後の時刻にしてください。", not_member:"ログインが切れました。もう一度ログインしてください。" };
+  const errMsg = e => ERR[e.code] || "通信できませんでした。電波を確認してもう一度押してください。";
+
+  // ---------- auth ----------
+  function showJoin(){ $("mainView").hidden=true; $("joinView").hidden=false; }
+  async function startWith(secret, fresh){
+    try{
+      S.me = await rpc("whoami",{p_secret:secret});
+      S.secret = secret; LS.set("tc.secret", secret);
+      $("joinView").hidden=true; $("mainView").hidden=false;
+      await refresh();
+      if(fresh) openSettings();
+      return true;
+    }catch(e){
+      if(e.code==="not_member"){ LS.del("tc.secret"); showJoin(); return false; }
+      showJoin(); $("loginErr").textContent=errMsg(e); $("loginErr").hidden=false; return false;
+    }
+  }
+  $("joinForm").addEventListener("submit", async e=>{
+    e.preventDefault(); $("joinErr").hidden=true; $("joinBtn").disabled=true;
+    try{
+      const r = await rpc("join_team",{p_code:$("joinCode").value, p_name:$("joinName").value});
+      await startWith(r.secret, true);
+      toast("参加しました。通知の設定をしてください");
+    }catch(err){ $("joinErr").textContent = err.code==="bad_code" ? "招待コードが違います。" : err.code==="team_full" ? "参加できる人数の上限です。" : errMsg(err); $("joinErr").hidden=false; }
+    finally{ $("joinBtn").disabled=false; }
+  });
+  $("loginForm").addEventListener("submit", async e=>{
+    e.preventDefault(); $("loginErr").hidden=true;
+    const ok = await startWith($("loginKey").value.trim(), false);
+    if(!ok){ $("loginErr").textContent="ログインキーが違います。"; $("loginErr").hidden=false; }
+  });
+
+  // ---------- data ----------
+  async function refresh(){
+    if(!S.secret) return;
+    try{
+      const st = await rpc("get_state",{p_secret:S.secret, p_days:90});
+      S.skew = T(st.now) - Date.now();
+      detectChanges(st.sessions);
+      S.members = st.members; S.sessions = st.sessions;
+      $("statusLine").textContent = "最終更新 "+hm(Date.now());
+      renderAll();
+    }catch(e){
+      if(e.code==="not_member"){ LS.del("tc.secret"); S.secret=null; showJoin(); return; }
+      $("statusLine").textContent = "通信できませんでした。少しして自動でやり直します。";
+    }
+  }
+  // in-app toast when the partner's state changes while the page is open
+  function detectChanges(list){
+    const map = new Map(list.map(s=>[s.id, stateOf(s)]));
+    if(S.prev){
+      for(const s of list){
+        if(s.member_id===S.me.id) continue;
+        const before=S.prev.get(s.id), after=map.get(s.id);
+        if(before===after) continue;
+        const n=nameOf(s.member_id)||"相手";
+        if(!before && after==="work") toast(n+"さんが出勤しました");
+        else if(after==="brk") toast(n+"さんが休憩に入りました");
+        else if(before==="brk" && after==="work") toast(n+"さんが休憩から戻りました");
+        else if(after==="done") toast(n+"さんが退勤しました");
+      }
+    }
+    S.prev = map;
+  }
+  async function act(fn, args, okMsg){
+    if(S.busy) return; S.busy=true; renderPunches();
+    try{ await rpc(fn, Object.assign({p_secret:S.secret}, args)); if(okMsg) toast(okMsg); }
+    catch(e){ toast(errMsg(e)); }
+    finally{ S.busy=false; await refresh(); }
+  }
+
+  // ---------- punches ----------
+  function openOut(){
+    const s=openOf(S.me.id); if(!s) return;
+    S.outFor=s.id; $("outText").value = LS.get("tc.draft."+s.id) || "";
+    $("outTitle").textContent="退勤："+dur(workedMs(s))+" の作業内容";
+    $("outModal").hidden=false; $("outText").focus();
+  }
+  $("outText").addEventListener("input",()=>{ if(S.outFor) LS.set("tc.draft."+S.outFor,$("outText").value); });
+  $("outCancel").onclick=()=>{ $("outModal").hidden=true; };
+  $("outForm").addEventListener("submit",async e=>{
+    e.preventDefault(); $("outModal").hidden=true;
+    const id=S.outFor;
+    await act("punch",{p_action:"out", p_summary:$("outText").value.trim()}, "退勤しました。おつかれさまでした");
+    if(!openOf(S.me.id)) LS.del("tc.draft."+id);
+  });
+  $("tplBtn").onclick=()=>{ const t=$("outText"); const tpl="・やったこと：\n・変更したファイル／画面：\n・相手に伝えたいこと：\n・次にやること："; t.value=t.value? t.value+"\n"+tpl : tpl; t.dispatchEvent(new Event("input")); t.focus(); };
+
+  // ---------- edit ----------
+  function openEdit(s){
+    S.editFor=s.id; $("editStart").value=toLocalInput(T(s.start_at)); $("editEnd").value=toLocalInput(T(s.end_at));
+    $("editBreak").value=Math.round(breakMs(s,T(s.end_at))/60000); $("editText").value=s.summary||""; $("editErr").hidden=true; $("editModal").hidden=false;
+  }
+  $("editCancel").onclick=()=>{ $("editModal").hidden=true; };
+  $("editForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const start=new Date($("editStart").value), endV=$("editEnd").value, end=endV?new Date(endV):null;
+    const bmin=Math.max(0,Math.round(Number($("editBreak").value||0)));
+    const err=m=>{ $("editErr").textContent=m; $("editErr").hidden=false; };
+    if(isNaN(start)) return err("出勤時刻を入れてください。");
+    if(end && end<=start) return err("退勤は出勤より後の時刻にしてください。");
+    if(end && bmin*60000 >= end-start) return err("休憩が稼働時間より長くなっています。");
+    $("editModal").hidden=true;
+    act("edit_session",{p_id:S.editFor, p_start:start.toISOString(), p_end:end?end.toISOString():null, p_break_min:bmin, p_summary:$("editText").value.trim()}, "修正を保存しました");
+  });
+  $("editDelete").onclick=()=>{ const id=S.editFor; $("editModal").hidden=true; ask("この記録を削除しますか？","削除すると元に戻せません。","削除する",()=>act("delete_session",{p_id:id},"削除しました")); };
+
+  // ---------- settings ----------
+  function openSettings(){ $("topicText").textContent=S.me.topic; $("keyText").textContent=S.secret; $("nameInput").value=S.me.name; $("setModal").hidden=false; }
+  $("settingsBtn").onclick=openSettings;
+  $("setClose").onclick=()=>{ $("setModal").hidden=true; };
+  document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",async()=>{
+    const node=$(b.getAttribute("data-copy"));
+    try{ await navigator.clipboard.writeText(node.textContent); toast("コピーしました"); }
+    catch(e){ const r=document.createRange(); r.selectNodeContents(node); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("選択しました。長押しでコピーしてください"); }
+  }));
+  $("nameSave").onclick=async()=>{ const n=$("nameInput").value.trim(); if(!n) return; await act("set_name",{p_name:n},"表示名を保存しました"); S.me.name=n; };
+  $("logoutBtn").onclick=()=>ask("この端末からログアウトしますか？","もう一度使うときはログインキーが必要です。先にコピーしておいてください。","ログアウト",()=>{ LS.del("tc.secret"); location.reload(); });
+
+  // ---------- render ----------
+  function renderPunches(){
+    const box=$("punches"); box.replaceChildren();
+    const s=openOf(S.me.id), st=stateOf(s), dis=S.busy?"":null;
+    if(st==="off"||st==="done") box.append(el("button",{class:"punch in",type:"button",disabled:dis,onclick:()=>act("punch",{p_action:"in"},"出勤しました"),text:"出勤"}));
+    else{
+      box.append(el("button",{class:"punch brk",type:"button",disabled:dis,onclick:()=>act("punch",{p_action: st==="brk"?"resume":"break"}, st==="brk"?"休憩を終えました":"休憩に入りました"),text: st==="brk"?"休憩おわり":"休憩"}));
+      box.append(el("button",{class:"punch out",type:"button",disabled:dis,onclick:openOut,text:"退勤"}));
+    }
+  }
+  function todayTotal(mid){ const k=dayKey(now()); return S.sessions.filter(s=>s.member_id===mid && dayKey(T(s.start_at))===k).reduce((a,s)=>a+workedMs(s),0); }
+  function weekTotal(mid){ const d=new Date(now()); d.setHours(0,0,0,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); const from=d.getTime(); return S.sessions.filter(s=>s.member_id===mid && T(s.start_at)>=from).reduce((a,s)=>a+workedMs(s),0); }
+  function memberIds(){ const ids=S.members.map(m=>m.id); return ids.sort((a,b)=>(a===S.me.id?-1:b===S.me.id?1:0)); }
+
+  function renderMe(){
+    $("meName").textContent=S.me.name;
+    const s=openOf(S.me.id), st=stateOf(s), p=$("meState");
+    p.className="pill "+(st==="work"?"work":st==="brk"?"brk":"off"); p.textContent= st==="work"?"稼働中":st==="brk"?"休憩中":"オフ";
+    tick();
+  }
+  function tick(){
+    if(!S.me) return;
+    const s=openOf(S.me.id), st=stateOf(s);
+    if(st==="work"||st==="brk"){ $("meClock").textContent=clock(workedMs(s)); const b=Math.round(breakMs(s)/60000); $("meSub").textContent=hm(T(s.start_at))+" 出勤"+(b?" · 休憩 "+b+"分":""); }
+    else { const t=todayTotal(S.me.id); $("meClock").textContent=clock(t); $("meSub").textContent= t? "今日の稼働合計" : "まだ出勤していません"; }
+    document.querySelectorAll("[data-live]").forEach(n=>{ const ss=openOf(n.getAttribute("data-live")); if(ss) n.textContent=hm(T(ss.start_at))+" から · "+dur(workedMs(ss)); });
+    document.querySelectorAll("[data-live-entry]").forEach(n=>{ const ss=S.sessions.find(x=>x.id===n.getAttribute("data-live-entry")); if(ss) n.textContent=dur(workedMs(ss)); });
+  }
+  function renderTeam(){
+    $("team").replaceChildren(...memberIds().map(mid=>{
+      const s=openOf(mid), st=stateOf(s), live=st==="work"||st==="brk";
+      const last=S.sessions.find(x=>x.member_id===mid && x.end_at);
+      const since = live ? hm(T(s.start_at))+" から · "+dur(workedMs(s)) : last ? "最終退勤 "+(dayKey(T(last.end_at))===dayKey(now())?"":dayLabel(dayKey(T(last.end_at))).replace(/^(今日|昨日) · /,"")+" ")+hm(T(last.end_at)) : "記録なし";
+      return el("div",{class:"member"},
+        el("div",{class:"row"}, el("span",{class:"nm",text:nameOf(mid)+(mid===S.me.id?"（あなた）":"")}),
+          el("span",{class:"pill "+(st==="work"?"work":st==="brk"?"brk":"off"),text:st==="work"?"稼働中":st==="brk"?"休憩中":"オフ"})),
+        el("div",{class:"meta"}, el("span",{"data-live":live?mid:null,text:since}), el("span",{class:"mono",text:"今日 "+dur(todayTotal(mid))})));
+    }));
+    if(S.members.length<2) $("team").append(el("div",{class:"empty-state",text:"相手がまだ参加していません。招待コードとこのページのURLを送ってください。"}));
+  }
+  function renderFilter(){
+    const opts=[["all","全員"],...memberIds().map(m=>[m,nameOf(m)])];
+    if(!opts.some(o=>o[0]===S.filter)) S.filter="all";
+    $("filterSeg").replaceChildren(...opts.map(([v,l])=>el("button",{type:"button","aria-pressed":String(S.filter===v),onclick:()=>{S.filter=v;renderAll();},text:l})));
+    $("week").replaceChildren(...memberIds().filter(m=>S.filter==="all"||m===S.filter).filter(m=>S.sessions.some(s=>s.member_id===m)).map(m=>el("span",{class:"chip"},nameOf(m)+" 今週 ",el("strong",{class:"mono",text:dur(weekTotal(m))}))));
+  }
+  function renderLog(){
+    const list=S.sessions.filter(s=>S.filter==="all"||s.member_id===S.filter);
+    if(!list.length){ $("log").replaceChildren(el("div",{class:"empty-state",text:"まだ記録がありません。上の「出勤」を押すと最初の記録が作られます。"})); return; }
+    const groups=new Map(); list.forEach(s=>{ const k=dayKey(T(s.start_at)); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(s); });
+    const out=[];
+    for(const [k,items] of groups){
+      out.push(el("div",{class:"day"},
+        el("div",{class:"day-h"}, el("span",{text:dayLabel(k)}), el("span",{class:"mono",text:"合計 "+dur(items.reduce((a,s)=>a+workedMs(s),0))})),
+        ...items.map(s=>{
+          const st=stateOf(s), b=breakMs(s,T(s.end_at)), st0=T(s.start_at), en=T(s.end_at);
+          return el("article",{class:"entry"},
+            el("div",{class:"stamp"}, el("span",{text:hm(st0)}), el("span",{class:"arrow",text:"↓"}), el("span",{text: en ? (dayKey(en)!==dayKey(st0)?"翌"+hm(en):hm(en)) : "--:--"})),
+            el("div",{class:"top"}, el("strong",{text:nameOf(s.member_id)}),
+              st!=="done"? el("span",{class:"pill "+(st==="brk"?"brk":"work"),text:st==="brk"?"休憩中":"稼働中"}) : null,
+              b>=60000? el("span",{class:"tag",text:"休憩 "+Math.round(b/60000)+"分"}) : null,
+              s.edited? el("span",{class:"tag",text:"修正済み"}) : null),
+            el("div",{class:"dur","data-live-entry": st!=="done"? s.id : null,text:dur(workedMs(s))}),
+            el("div",{class:"sum"+(s.summary?"":" empty"),text: s.summary || (st==="done"?"作業メモなし":"作業中…")}),
+            s.member_id===S.me.id ? el("div",{class:"acts"}, el("button",{type:"button",onclick:()=>openEdit(s),text:"修正"})) : null);
+        })));
+    }
+    $("log").replaceChildren(...out);
+  }
+  function renderAll(){ if(!S.me) return; renderPunches(); renderMe(); renderTeam(); renderFilter(); renderLog(); }
+
+  setInterval(tick, 1000);
+  setInterval(()=>{ if(document.visibilityState==="visible" && !S.busy) refresh(); }, 20000);
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });
+
+  // ---------- boot ----------
+  const m = location.hash.match(/k=([0-9a-f]{48})/);
+  if(m){ LS.set("tc.secret", m[1]); history.replaceState(null,"",location.pathname); }
+  const saved = LS.get("tc.secret");
+  if(saved) startWith(saved,false); else showJoin();
+})();
+</script>
+</body>
+</html>
